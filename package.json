@@ -1,0 +1,20 @@
+{
+  "name": "meadowlark",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "nodemon": "nodemon meadowlark.js"
+  },
+  "author": "Constantin Makeev",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.14.0",
+    "express3-handlebars": "~0.5.0"
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "mocha": "^3.1.2",
+    "zombie": "~2.0.0-alpha31"
+  }
+}
