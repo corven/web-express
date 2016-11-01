@@ -1,19 +1,51 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
 <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
     <title>Meadowlark</title>
     {{#if showTests}}
         <link rel="stylesheet" href="/vendor/mocha.css">
     {{/if}}
-    <!--<script src="//code.jquery.com/jquery-2.2.4.js"></script>-->
+    {{{_sections.head}}}
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
+    <style>
+        body {
+            padding-top: 50px;
+            padding-bottom: 20px;
+        }
+    </style>
+    <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap-theme.min.css">
+    <link rel="stylesheet" href="/css/main.css">
+
+    <script src="/vendor/js/modernizr-2.6.2-respond-1.1.0.min.js"></script>
 </head>
 <body>
     <header><img src="/img/logo.png" alt="Логотип"></header>
-    {{{body}}}
+    <div class="container">
+        {{#if flash}}
+            <div class="alert alert-dismissible alert-{{flash.type}}">
+                <button type="button" class="close"
+                    data-dismiss="alert" aria-hidden="true">&times;</button>
+                <strong>{{flash.intro}}</strong> {{{flash.message}}}
+            </div>
+        {{/if}}
+
+        {{{body}}}
+
+        <hr>
+
+        <footer>
+            <p>&copy; Meadowlark Travel 2016</p>
+        </footer>
+    </div> <!-- /container -->
+
     <script src="//code.jquery.com/jquery-2.2.4.min.js"></script>
     <script>window.jQuery || document.write('<script src="/vendor/js/jquery-2.2.4.min.js"><\/script>')</script>
 
     {{{_sections.jquery}}}
+
     {{#if showTests}}
         <div id="mocha"></div>
         <script src="/vendor/mocha.js"></script>
@@ -28,5 +60,8 @@
         {{/if}}
         <script>mocha.run();</script>
     {{/if}}
+
+    <script src="/vendor/bootstrap/js/bootstrap.min.js"></script>
+    <script src="/js/main.js"></script>
 </body>
 </html>

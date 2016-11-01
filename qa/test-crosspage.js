@@ -16,8 +16,8 @@ suite('Межстраничные тесты', function () {
             browser.clickLink('.requestGroupRate', function () {
                 assert(browser.field('referrer').value === referrer);
                 done();
-            })
-        })
+            });
+        });
     });
 
     test('запрос расценок для групп со страницы туров пансионата ' +
@@ -27,8 +27,8 @@ suite('Межстраничные тесты', function () {
             browser.clickLink('.requestGroupRate', function () {
                 assert(browser.field('referrer').value === referrer);
                 done();
-            })
-        })
+            });
+        });
     });
 
     test('посещение страницы "Запрос цены для групп" напрямую должен ' +
@@ -37,7 +37,7 @@ suite('Межстраничные тесты', function () {
         browser.visit(referrer, function () {
             assert(browser.field('referrer').value === '');
             done();
-        })
-    })
+        });
+    });
 
 });
