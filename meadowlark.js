@@ -2,7 +2,7 @@ var express = require('express');
 var app = express();
 var http = require('http');
 var fs = require('fs');
-var jqupload = require('jquery-file-upload-middleware');
+// var jqupload = require('jquery-file-upload-middleware');
 
 var formidable = require('formidable');
 var fortune = require('./lib/fortune');
@@ -10,6 +10,10 @@ var credentials = require('./credentials');
 // var cartValidation = require('./lib/cartValidation.js');
 // var emailService = require('./lib/email.js');
 var server;
+var Vacation = require('./models/vacation');
+var VacationInSeasonListener = require('./models/vacationInSeasonListener.js');
+var MongoSessionStore = require('session-mongoose')(require('connect'));
+var sessionStore = new MongoSessionStore({ url: credentials.mongo[app.get('env')].connectionString });
 
 // var VALID_EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
 
@@ -30,7 +34,8 @@ app.use(require('cookie-parser')(credentials.cookieSecret));
 app.use(require('express-session')({
     resave: false,
     saveUninitialized: false,
-    secret: credentials.cookieSecret
+    secret: credentials.cookieSecret,
+    store: sessionStore
 }));
 
 function getWeatherData() {
@@ -78,6 +83,145 @@ app.set('view engine', 'handlebars');
 app.set('port', process.env.PORT || 3000);
 app.use(express.static(__dirname + '/public'));
 app.use(require('body-parser').urlencoded({extended: true}));
+
+var mongoose = require('mongoose');
+var options = {
+    server: {
+        socketOptions: { keepAlive: 1 }
+    }
+};
+switch (app.get('env')) {
+    case 'development':
+        mongoose.connect(credentials.mongo.development.connectionString, options);
+        break;
+    case 'production':
+        mongoose.connect(credentials.mongo.production.connectionString, options);
+        break;
+    default:
+        throw new Error('Неизвестная среда выполнения: ' + app.get('env'));
+}
+
+Vacation.find(function(err, vacations) {
+    if (err) {
+        return console.log(err);
+    }
+    if (vacations.length) {
+        return;
+    }
+
+    new Vacation({
+        name: 'Однодневный тур по реке Худ',
+        slug: 'hood-river-day-trip',
+        category: 'Однодневный тур',
+        sku: 'HR199',
+        description: 'Проведите день в плавании по реке КОлумбия и насладитесь сваренным по традиционным рецептам ' +
+            'пивом на реке Худ',
+        priceInCents: 9995,
+        tags: ['однодневный тур', 'река худ', 'плавание', 'виндсерфинг', 'пивоварение'],
+        inSeason: true,
+        maximumGuests: 16,
+        available: true,
+        packagesSold: 0
+    }).save();
+
+    new Vacation({
+        name: 'Отдых в Орегон Коуст',
+        slug: 'oregon-coast-getaway',
+        category: 'Отдых на выходных',
+        sku: 'OC39',
+        description: 'Enjoy the ocean air and quaint coastal towns!',
+        priceInCents: 269995,
+        tags: ['weekend getaway', 'oregon coast', 'beachcombing'],
+        inSeason: false,
+        maximumGuests: 8,
+        available: true,
+        packagesSold: 0
+    }).save();
+
+    new Vacation({
+        name: 'Rock Climbing in Bend',
+        slug: 'rock-climbing-in-bend',
+        category: 'Adventure',
+        sku: 'B99',
+        description: 'Experience the thrill of rock climbing in the high desert.',
+        priceInCents: 289995,
+        tags: ['weekend getaway', 'bend', 'high desert', 'rock climbing', 'hiking', 'skiing'],
+        inSeason: true,
+        requiresWaiver: true,
+        maximumGuests: 4,
+        available: false,
+        packagesSold: 0,
+        notes: 'The tour guide is currently recovering from a skiing accident.'
+    }).save();
+});
+
+app.get('/vacations', function(req, res){
+    Vacation.find({ available: true }, function(err, vacations){
+        var currency = req.session.currency || 'USD';
+        var context = {
+            currency: currency,
+            vacations: vacations.map(function(vacation){
+                return {
+                    sku: vacation.sku,
+                    name: vacation.name,
+                    description: vacation.description,
+                    inSeason: vacation.inSeason,
+                    price: convertFromUSD(vacation.priceInCents / 100, currency),
+                    qty: vacation.qty
+                };
+            })
+        };
+        switch(currency){
+            case 'USD': context.currencyUSD = 'selected'; break;
+            case 'GBP': context.currencyGBP = 'selected'; break;
+            case 'BTC': context.currencyBTC = 'selected'; break;
+        }
+        res.render('vacations', context);
+    });
+});
+
+function convertFromUSD(value, currency){
+    switch(currency){
+        case 'USD': return value * 1;
+        case 'GBP': return value * 0.6;
+        case 'BTC': return value * 0.0023707918444761;
+        default: return NaN;
+    }
+}
+
+app.get('/notify-me-when-in-season', function(req, res){
+    res.render('notify-me-when-in-season', { sku: req.query.sku });
+});
+
+app.post('/notify-me-when-in-season', function(req, res){
+    VacationInSeasonListener.update(
+        { email: req.body.email },
+        { $push: { skus: req.body.sku } },
+        { upsert: true },
+        function(err){
+            if(err) {
+                console.error(err.stack);
+                req.session.flash = {
+                    type: 'danger',
+                    intro: 'Упс!',
+                    message: 'При обработке вашего запроса произошла ошибка.'
+                };
+                return res.redirect(303, '/vacations');
+            }
+            req.session.flash = {
+                type: 'success',
+                intro: 'Спасибо!',
+                message: 'Вы будете оповещены когда наступит сезон для этого тура.'
+            };
+            return res.redirect(303, '/vacations');
+        }
+    );
+});
+
+app.get('/set-currency/:currency', function(req,res){
+    req.session.currency = req.params.currency;
+    return res.redirect(303, '/vacations');
+});
 
 app.use(function (req, res, next) {
     res.locals.showTests = app.get('env') != 'production' && req.query.test === '1';
