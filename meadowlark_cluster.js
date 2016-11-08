@@ -27,3 +27,17 @@ if (cluster.isMaster){
     // запускаем наше приложение на исполнителе
     require('./meadowlark.js')();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+//    "session-mongoose": "^0.4.1",
+//    "vhost": "^2.0.0"
